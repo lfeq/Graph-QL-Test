@@ -1,0 +1,34 @@
+# Visual Studio-specific files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider-specific files
+.idea/
+*.sln.iml
+
+# Build artifacts
+bin/
+obj/
+out/
+
+# Dependencies
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+global.json
+
+# Logs
+*.log
+logs/
+
+# User-specific files
+*.rsuser
+*.sln.ide
+
+# GraphQL-specific files
+schema.gql
