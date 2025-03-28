@@ -22,7 +22,37 @@ namespace ConferencePlanner.GraphQL.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("ConferencePlanner.GraphQL.Data.Speaker", b =>
+            modelBuilder.Entity("ConferencePlanner.GraphQL.Models.FutureViewing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Age")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FutureViewings");
+                });
+
+            modelBuilder.Entity("ConferencePlanner.GraphQL.Models.Speaker", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

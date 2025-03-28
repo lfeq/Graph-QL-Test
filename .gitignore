@@ -1,3 +1,5 @@
+.env
+
 # Visual Studio-specific files
 .vs/
 *.user

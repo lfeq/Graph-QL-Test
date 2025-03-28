@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ConferencePlanner.GraphQL.Data;
+namespace ConferencePlanner.GraphQL.Models;
 
 public class Speaker {
     public Guid Id { get; set; }
