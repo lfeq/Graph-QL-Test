@@ -8,4 +8,5 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 {
     public DbSet<Speaker> Speakers { get; init; }
     public DbSet<FutureViewing> FutureViewings { get; init; }
+    
 }

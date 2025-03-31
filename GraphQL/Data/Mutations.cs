@@ -20,32 +20,48 @@ public static class Mutations {
         await dbContext.SaveChangesAsync(cancellationToken);
         return new Payloads(speaker);
     }
-
+    
     [Mutation]
     public static async Task<AddFutureViewingPayload> AddFutureViewingAsync(
         AddFutureViewingInput input,
         ApplicationDbContext dbContext,
+        [Service] IBackgroundTaskQueue taskQueue, // Cola de tareas en segundo plano
         CancellationToken cancellationToken) {
-        Env.Load();
-        
-        ImageClient client = new(
-            model: "dall-e-3",
-            apiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-        );
-        var prompt =
-            $"Una imagen imaginando un mundo por una persona llamada {input.Name} de {input.Age} años de edad y " +
-            $"se imagina el mundo de la siguiente forma {input.Content}";
-        GeneratedImage image = await client.GenerateImageAsync(prompt: prompt, cancellationToken: cancellationToken);
-        
+        // Guardar el registro inicial sin imagen
         var futureViewing = new FutureViewing {
             Name = input.Name,
             Age = input.Age,
             Content = input.Content,
             CreatedAt = DateTime.UtcNow,
-            ImageUrl = image.ImageUri.ToString()
+            Status = ProcessingStatus.Pending // Nuevo campo de estado
         };
         dbContext.FutureViewings.Add(futureViewing);
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Encolar generación de imagen en segundo plano
+        taskQueue.Enqueue(async (IServiceProvider serviceProvider, CancellationToken ct) => {
+            using var scope = serviceProvider.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var client = new ImageClient(
+                model: "dall-e-3",
+                apiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+            );
+            try {
+                var prompt = $"Imagen para {input.Name} ({input.Age} años): {input.Content}";
+                GeneratedImage image = await client.GenerateImageAsync(prompt: prompt, cancellationToken: ct);
+
+                // Actualizar registro con la imagen
+                var entry = await db.FutureViewings.FindAsync(futureViewing.Id);
+                entry.ImageUrl = image.ImageUri.ToString();
+                entry.Status = ProcessingStatus.Completed;
+                await db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex) {
+                futureViewing.Status = ProcessingStatus.Failed;
+                await db.SaveChangesAsync(ct);
+                // Opcional: Loggear el error
+            }
+        });
         return new AddFutureViewingPayload(futureViewing);
     }
 }

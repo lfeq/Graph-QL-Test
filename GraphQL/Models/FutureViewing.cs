@@ -16,4 +16,11 @@ public class FutureViewing {
     public DateTime CreatedAt { get; set; }
     
     public string? ImageUrl { get; set; }
+    public ProcessingStatus Status { get; set; }
+}
+
+public enum ProcessingStatus {
+    Pending,
+    Completed,
+    Failed
 }
