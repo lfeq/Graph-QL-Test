@@ -18,6 +18,9 @@ public static class Queries
         ApplicationDbContext dbContext,
         CancellationToken cancellationToken)
     {
-        return await dbContext.FutureViewings.AsNoTracking().ToListAsync(cancellationToken);
+        return await dbContext.FutureViewings
+            .OrderByDescending(f => f.CreatedAt) 
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
     }
 }

@@ -27,7 +27,7 @@ public static class Mutations {
         ApplicationDbContext dbContext,
         CancellationToken cancellationToken) {
         Env.Load();
-        //ImageClient client = new("dall-e-3", Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
+        
         ImageClient client = new(
             model: "dall-e-3",
             apiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY")
@@ -35,9 +35,7 @@ public static class Mutations {
         var prompt =
             $"Una imagen imaginando un mundo por una persona llamada {input.Name} de {input.Age} años de edad y " +
             $"se imagina el mundo de la siguiente forma {input.Content}";
-        GeneratedImage image = client.GenerateImage(prompt: prompt, cancellationToken: cancellationToken);
-
-        Console.WriteLine(image.ImageUri);
+        GeneratedImage image = await client.GenerateImageAsync(prompt: prompt, cancellationToken: cancellationToken);
         
         var futureViewing = new FutureViewing {
             Name = input.Name,
