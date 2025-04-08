@@ -37,4 +37,33 @@ public static class Queries
             .AsNoTracking()
             .ToListAsync(cancellationToken);
     }
+    
+    [Query]
+    public static async Task<IEnumerable<FutureViewing>> GetRecentFutureViewingsAsync(
+        ApplicationDbContext dbContext,
+        int page = 1, // Default to the first page
+        int pageSize = 20, // Set the page size to 20
+        CancellationToken cancellationToken = default)
+    {
+        if (page <= 0)
+        {
+            page = 1; // Ensure page number is at least 1
+        }
+
+        if (pageSize <= 0)
+        {
+            pageSize = 20; // Ensure page size is at least 1
+        }
+        
+        // Calculate the date and time 24 hours ago
+        DateTime twentyFourHoursAgo = DateTime.UtcNow.AddHours(-24);
+
+        return await dbContext.FutureViewings
+            .Where(x => x.Status == ProcessingStatus.Completed && x.CreatedAt >= twentyFourHoursAgo)
+            .OrderByDescending(f => f.CreatedAt)
+            .Skip((page - 1) * pageSize) // Skip the appropriate number of records
+            .Take(pageSize) // Take only the specified number of records
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
 }
