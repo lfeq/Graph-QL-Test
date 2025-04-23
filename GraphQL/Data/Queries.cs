@@ -58,12 +58,16 @@ public static class Queries
         // Calculate the date and time 24 hours ago
         DateTime twentyFourHoursAgo = DateTime.UtcNow.AddHours(-24);
 
-        return await dbContext.FutureViewings
+        List<FutureViewing> imagesToShow = await dbContext.FutureViewings
             .Where(x => x.Status == ProcessingStatus.Completed && x.CreatedAt >= twentyFourHoursAgo)
             .OrderByDescending(f => f.CreatedAt)
             .Skip((page - 1) * pageSize) // Skip the appropriate number of records
             .Take(pageSize) // Take only the specified number of records
-            .AsNoTracking()
             .ToListAsync(cancellationToken);
+        foreach (FutureViewing image in imagesToShow) {
+            image.HasBeenViewed = true;
+        }
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return imagesToShow;
     }
 }

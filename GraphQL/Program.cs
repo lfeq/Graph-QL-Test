@@ -25,7 +25,7 @@ builder.Services
 var app = builder.Build();
 
 app.UseCors("AllowAll");
-
+app.UseStaticFiles();
 app.MapGraphQL();
 
 await app.RunWithGraphQLCommandsAsync(args);

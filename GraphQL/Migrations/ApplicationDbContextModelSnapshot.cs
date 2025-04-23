@@ -39,6 +39,9 @@ namespace ConferencePlanner.GraphQL.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("HasBeenViewed")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("ImageUrl")
                         .HasColumnType("text");
 

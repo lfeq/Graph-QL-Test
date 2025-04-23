@@ -17,6 +17,7 @@ public class FutureViewing {
     
     public string? ImageUrl { get; set; }
     public ProcessingStatus Status { get; set; }
+    public bool HasBeenViewed { get; set; } = false;
 }
 
 public enum ProcessingStatus {

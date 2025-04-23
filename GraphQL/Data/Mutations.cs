@@ -2,6 +2,7 @@
 using DotNetEnv;
 using OpenAI;
 using OpenAI.Images;
+using Path = System.IO.Path;
 
 namespace ConferencePlanner.GraphQL.Data;
 
@@ -20,7 +21,7 @@ public static class Mutations {
         await dbContext.SaveChangesAsync(cancellationToken);
         return new Payloads(speaker);
     }
-    
+
     [Mutation]
     public static async Task<AddFutureViewingPayload> AddFutureViewingAsync(
         AddFutureViewingInput input,
@@ -33,7 +34,8 @@ public static class Mutations {
             Age = input.Age,
             Content = input.Content,
             CreatedAt = DateTime.UtcNow,
-            Status = ProcessingStatus.Pending // Nuevo campo de estado
+            Status = ProcessingStatus.Pending, // Nuevo campo de estado
+            HasBeenViewed = false // Nuevo campo de visualización
         };
         dbContext.FutureViewings.Add(futureViewing);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -47,13 +49,27 @@ public static class Mutations {
                 apiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY")
             );
             try {
+                var options = new ImageGenerationOptions {
+                    Size = GeneratedImageSize.W1024xH1024,
+                    ResponseFormat = GeneratedImageFormat.Bytes
+                };
                 var prompt = $"Imagen para {input.Name} ({input.Age} años): {input.Content}";
-                GeneratedImage image = await client.GenerateImageAsync(prompt: prompt, cancellationToken: ct);
+                GeneratedImage image =
+                    await client.GenerateImageAsync(prompt: prompt, cancellationToken: ct, options: options);
+                var imageBytes = image.ImageBytes;
 
                 // Actualizar registro con la imagen
-                var entry = await db.FutureViewings.FindAsync(futureViewing.Id);
-                entry.ImageUrl = image.ImageUri.ToString();
+                var entry = await db.FutureViewings.FindAsync(futureViewing.Id, ct);
                 entry.Status = ProcessingStatus.Completed;
+                string fileName = $"{entry.Id}.png";
+                string imagesDirectory = Path.Combine(Directory.GetCurrentDirectory(),"wwwroot", "images");
+                await db.SaveChangesAsync(ct);
+                if (!Directory.Exists(imagesDirectory)) {
+                    Directory.CreateDirectory(imagesDirectory);
+                }
+                string filePath = Path.Combine(imagesDirectory, fileName);
+                await File.WriteAllBytesAsync(filePath, imageBytes, ct);
+                entry.ImageUrl = $"images/{fileName}";
                 await db.SaveChangesAsync(ct);
             }
             catch (Exception ex) {

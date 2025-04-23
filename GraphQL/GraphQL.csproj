@@ -21,4 +21,12 @@
     <PackageReference Include="OpenAI" Version="2.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\images\019663ac-dd1f-7c7f-a1d1-a0a3e6ad3f34.png" />
+  </ItemGroup>
+
 </Project>
