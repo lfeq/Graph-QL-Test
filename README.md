@@ -123,6 +123,11 @@ query {
 }
 ```
 
+### Pruebas usando otra cosa que no es localhost
+
+Puedes correr `ipconfig` en la terminal para ver tu IP local.
+e ir a `http://<tu-ip>:5000/graphql` para acceder a la API.
+
 ---
 
 ## 8. Costos de operación
