@@ -73,9 +73,10 @@ public static class Mutations {
                 await db.SaveChangesAsync(ct);
             }
             catch (Exception ex) {
+                Console.WriteLine("ERror generating image: " + ex.Message);
                 futureViewing.Status = ProcessingStatus.Failed;
                 await db.SaveChangesAsync(ct);
-                // Opcional: Loggear el error
+                // throw new GraphQLException("Error generating image", ex);
             }
         });
         return new AddFutureViewingPayload(futureViewing);

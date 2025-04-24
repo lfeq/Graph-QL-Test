@@ -52,6 +52,8 @@ public static class Queries {
             .Skip((page - 1) * pageSize) // Skip the appropriate number of records
             .Take(pageSize) // Take only the specified number of records
             .ToListAsync(cancellationToken);
+        // revert imagetstoshow
+        imagesToShow.Reverse();
         foreach (FutureViewing image in imagesToShow) {
             image.HasBeenViewed = true;
         }
