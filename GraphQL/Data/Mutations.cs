@@ -45,15 +45,17 @@ public static class Mutations {
             using var scope = serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var client = new ImageClient(
-                model: "dall-e-3",
+                model: "gpt-image-1", // "dall-e-3", "gpt-image-1"
                 apiKey: Environment.GetEnvironmentVariable("OPENAI_API_KEY")
             );
             try {
                 var options = new ImageGenerationOptions {
                     Size = GeneratedImageSize.W1024xH1024,
-                    ResponseFormat = GeneratedImageFormat.Bytes
+                    Quality = "high", // Debe pasarse como cadena: "low","medium","high" o "auto"
+                    // ResponseFormat = GeneratedImageFormat.Bytes
                 };
-                var prompt = $"Imagen para {input.Name} ({input.Age} años): {input.Content}";
+                var prompt =
+                    $"Imagen para {input.Name} que tiene ({input.Age} años) y se imagina el futuro de la siguiente forma: {input.Content}";
                 GeneratedImage image =
                     await client.GenerateImageAsync(prompt: prompt, cancellationToken: ct, options: options);
                 var imageBytes = image.ImageBytes;
@@ -62,7 +64,7 @@ public static class Mutations {
                 var entry = await db.FutureViewings.FindAsync(futureViewing.Id, ct);
                 entry.Status = ProcessingStatus.Completed;
                 string fileName = $"{entry.Id}.png";
-                string imagesDirectory = Path.Combine(Directory.GetCurrentDirectory(),"wwwroot", "images");
+                string imagesDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
                 await db.SaveChangesAsync(ct);
                 if (!Directory.Exists(imagesDirectory)) {
                     Directory.CreateDirectory(imagesDirectory);
