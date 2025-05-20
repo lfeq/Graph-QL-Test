@@ -36,6 +36,8 @@ Sigue estos pasos para configurar y ejecutar el proyecto:
 
     # Directorio para datos de la aplicación (opcional, para configurar rutas si es necesario)
     # APP_DATA_DIR="app/images" 
+
+    DATABASE_URL="postgresql+asyncpg://graphql_workshop:secret@graphql-workshop-postgres:5432/
     ```
     **Importante**: Reemplaza `"tu_clave_api_de_openai"` con tu clave API real de OpenAI.
 

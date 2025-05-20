@@ -1,7 +1,7 @@
 services:
   graphql-workshop-postgres:
     container_name: graphql-workshop-postgres
-    image: postgres:14.4 # Usar una versión específica es buena práctica, 17.4 no existe, la última es ~16
+    image: postgres:14.4
     environment:
       POSTGRES_USER: graphql_workshop
       POSTGRES_PASSWORD: secret
