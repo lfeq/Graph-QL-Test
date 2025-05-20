@@ -1,0 +1,11 @@
+ariadne[asgi-starlette] # Para GraphQL
+uvicorn[standard]       # Servidor ASGI
+SQLAlchemy[asyncpg]     # ORM para interactuar con PostgreSQL de forma asíncrona
+alembic                 # Para migraciones de base de datos (opcional pero recomendado)
+python-dotenv           # Para cargar variables de entorno desde .env
+openai                  # Cliente oficial de OpenAI
+aiofiles                # Para operaciones de archivo asíncronas
+requests                # Necesario para la biblioteca OpenAI (o httpx si prefieres async para todo)
+Pillow                  # Para manipulación de imágenes (si fuera necesario, OpenAI SDK lo puede requerir)
+psycopg2-binary         # Adaptador de Python para PostgreSQL (Alembic lo necesita)
+asyncpg

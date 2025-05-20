@@ -1,24 +1,37 @@
-
-name: graphql-workshop
-
 services:
   graphql-workshop-postgres:
     container_name: graphql-workshop-postgres
-    image: postgres:17.4
+    image: postgres:14.4
     environment:
       POSTGRES_USER: graphql_workshop
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: graphql_workshop
-    networks: [graphql-workshop]
-    ports: ["5432:5432"]
+    networks: [graphql-workshop-network] # Cambiado el nombre para evitar conflictos y ser más explícito
+    ports:
+      - "5432:5432"
     volumes:
-      - type: volume
-        source: postgres-data
-        target: /var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+
+  graphql-python-app:
+    container_name: graphql-python-app
+    build:
+      context: . # Asume que Dockerfile está en el mismo directorio que docker-compose.yml
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000" # Puerto de la aplicación Python
+    depends_on:
+      - graphql-workshop-postgres
+    networks: [graphql-workshop-network]
+    env_file:
+      - .env # Carga variables de entorno desde el archivo .env
+    volumes:
+      - ./app:/app/app # Monta el código de tu aplicación para desarrollo (hot-reloading)
+      - ./static:/app/static # Monta el directorio de estáticos para persistir imágenes
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Comando para iniciar la app con hot-reloading
 
 networks:
-  graphql-workshop:
-    name: graphql-workshop
+  graphql-workshop-network: # Nombre de la red
+    name: graphql-workshop-network
 
 volumes:
   postgres-data:

@@ -1,167 +1,190 @@
-## Resumen ejecutivo
+# Proyecto GraphQL con Python y PostgreSQL
 
-El servicio se basa en **ASP.NET 8 + Hot Chocolate GraphQL**, almacena datos en **PostgreSQL** y utiliza un **worker en
-segundo plano** para generar imágenes con la API de OpenAI. Se provee un *docker-compose* para la base de datos y se
-centralizan las credenciales en un archivo **`.env`**. Con los pasos descritos, un desarrollador sin experiencia previa
-en C# o GraphQL podrá clonar, configurar y poner en marcha la aplicación de forma reproducible.
+Este repositorio contiene una aplicación Python que utiliza GraphQL con Ariadne, SQLAlchemy para la interacción con una base de datos PostgreSQL, y OpenAI para la generación de imágenes. La aplicación está contenerizada utilizando Docker.
 
----
+## Requisitos Previos
 
-## 1. Prerrequisitos
+Asegúrate de tener instalados los siguientes componentes en tu sistema:
 
-| Software                                             | Versión mínima                                                             | Instalación                                                                       |
-|------------------------------------------------------|----------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| **.NET SDK**                                         | 8 LTS                                                                      | Descarga e instala desde la página oficial de .NET 8                              |
-| **Docker Desktop** (incluye Docker Engine + Compose) | 4.x                                                                        | Instalador oficial para Windows, macOS o Linux                                    |
-| **PostgreSQL**                                       | 15 +                                                                       | Se desplegará automáticamente con *docker-compose*; no requiere instalación local |
-| **IDE recomendado**                                  | Visual Studio 2022 Community (Windows) o JetBrains Rider Community Edition | VS Community: descarga gratuita  · Rider: descarga multiplataforma                |
-| **Git**                                              | Última estable                                                             | https://git-scm.com                                                               |
+*   **Python 3.10** (Aunque la aplicación se ejecuta en Docker, tener Python 3.10 localmente puede ser útil para desarrollo o pruebas).
+*   **Docker**: [Instrucciones de instalación de Docker](https://docs.docker.com/engine/install/)
+*   **Docker Compose**: Generalmente se instala junto con Docker. [Instrucciones](https://docs.docker.com/compose/install/)
 
-> **Nota:** si utilizas WSL 2 o Linux nativo, las mismas versiones de SDK y Docker son válidas.
+## Configuración y Ejecución
 
----
+Sigue estos pasos para configurar y ejecutar el proyecto:
 
-## 2. Descarga del proyecto
+1.  **Clona el repositorio:**
+    ```bash
+    git clone https://github.com/lfeq/Graph-QL-Test.git
+    cd Graph-QL-Test
+    ```
 
-```bash
-git clone https://github.com/lfeq/Graph-QL-Test.git
-cd Graph-QL-Test
-```
+2.  **Crea un archivo `.env`:**
+    En la raíz del proyecto, crea un archivo llamado `.env` con las siguientes variables de entorno. Este archivo será utilizado por `docker-compose.yml` para configurar la aplicación y la base de datos.
 
----
+    ```env
+    # Credenciales para la base de datos PostgreSQL (deben coincidir con docker-compose.yml)
+    POSTGRES_USER=graphql_workshop
+    POSTGRES_PASSWORD=secret
+    POSTGRES_DB=graphql_workshop
+    POSTGRES_HOST=graphql-workshop-postgres # Nombre del servicio de postgres en docker-compose
+    POSTGRES_PORT=5432
 
-## 3. Configuración de variables de entorno
+    # Clave API de OpenAI
+    OPENAI_API_KEY="tu_clave_api_de_openai"
 
-Crea un archivo **`.env`** en la raíz del proyecto (mismo nivel que `docker-compose.yml`) con el siguiente contenido de
-ejemplo:
+    # Directorio para datos de la aplicación (opcional, para configurar rutas si es necesario)
+    # APP_DATA_DIR="app/images" 
 
-```dotenv
-# Clave de OpenAI: indispensable para generar imágenes
-OPENAI_API_KEY=sk-**********************
-```
+    DATABASE_URL="postgresql+asyncpg://graphql_workshop:secret@graphql-workshop-postgres:5432/graphql_workshop
+    ```
+    **Importante**: Reemplaza `"tu_clave_api_de_openai"` con tu clave API real de OpenAI.
 
-La librería **DotNetEnv** cargará automáticamente estas variables en tiempo de ejecución .
+3.  **Verifica los requisitos de Python (Opcional - para desarrollo local):**
+    Si planeas desarrollar o ejecutar la aplicación fuera de Docker, asegúrate de tener un entorno virtual y de instalar las dependencias:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # En Windows: venv\Scripts\activate
+    pip install -r requirements.txt
+    ```
+    Las dependencias principales incluyen:
+    *   `ariadne[asgi-starlette]`
+    *   `uvicorn[standard]`
+    *   `SQLAlchemy[asyncpg]`
+    *   `alembic`
+    *   `python-dotenv`
+    *   `openai`
+    *   `aiofiles`
+    *   `Pillow`
+    *   `psycopg2-binary` (o `asyncpg` que ya está listado)
 
----
+4.  **Ejecuta la aplicación con Docker Compose:**
+    Este comando construirá las imágenes de Docker (si no existen) y levantará los servicios definidos en `docker-compose.yml` (la aplicación Python y la base de datos PostgreSQL).
+    ```bash
+    docker-compose up
+    ```
+    Si deseas forzar la reconstrucción de las imágenes (por ejemplo, si has cambiado el `Dockerfile` o las dependencias en `requirements.txt`):
+    ```bash
+    docker-compose up --build
+    ```
 
-## 4. Puesta en marcha de la base de datos
+    La aplicación Python estará disponible en `http://localhost:8000`. La interfaz de GraphQL (GraphiQL o similar, dependiendo de la configuración de Ariadne) debería estar accesible en `http://localhost:8000/graphql` (o la ruta que hayas configurado).
 
-```bash
-docker compose up -d
-```
+5.  **Acceso a la base de datos:**
+    La base de datos PostgreSQL estará accesible en el puerto `5432` de tu máquina local, utilizando las credenciales definidas en el archivo `.env` y `docker-compose.yml`.
 
-El comando levanta el contenedor `graphql-workshop-postgres`, expuesto en el puerto 5432 con las credenciales definidas
-en el *compose* .
+    ## Ejemplos de Operaciones GraphQL
 
----
+Puedes interactuar con la API GraphQL usando herramientas como Postman, Insomnia, o la interfaz GraphiQL que Ariadne podría proporcionar en `http://localhost:8000/graphql`.
 
-## 5. Restaurar dependencias y compilar
+### Mutation: Añadir un nuevo "Future Viewing"
 
-### Opción A — Línea de comandos
-
-```bash
-dotnet restore          # descarga paquetes NuGet
-dotnet build -c Release # compila la solución
-```
-
-### Opción B — IDE
-
-1. Abrir la carpeta del proyecto en Visual Studio o Rider.
-2. Esperar a que se complete la restauración automática de NuGet.
-3. Seleccionar configuración **Release** y compilar.
-
----
-
-## 6. Ejecución del servicio
-
-```bash
-dotnet run -c Release
-```
-
-Por defecto la API escucha en `http://localhost:5000`. Hot Chocolate expone la interfaz gráfica **Nitro (antes Banana
-Cake Pop)** en `http://localhost:5000/graphql`, donde es posible explorar el esquema y ejecutar consultas o mutaciones
-sin herramientas externas .
-
----
-
-## 7. Prueba rápida
-
-1. Navega a `http://localhost:5000/graphql`.
-
-2. Para generar una imagen, usa la mutación:
+Esta mutación crea un nuevo registro y encola la generación de una imagen.
 
 ```graphql
 mutation {
-  addFutureViewing(input:{
-    name: "María López"
-    age: 28
-    content: "Retrato estilo acuarela con tonos pastel"
-  }) {
+  addFutureViewing(
+    input: {
+      name: "Robot Atardecer"
+      age: 1
+      content: "Un robot melancólico observando un atardecer en un planeta alienígena, estilo cyberpunk"
+    }
+  ) {
     futureViewing {
       id
+      name
+      age
+      content
+      createdAt
       status
+      imageUrl
+      hasBeenViewed
     }
   }
 }
 ```
-El **worker en segundo plano** tomará el trabajo de la cola y, tras unos segundos, actualizará el registro a
-`status: Completed` y guardará la imagen en `wwwroot/images/{id}.png`.
 
-3. Para ver las imagenes puedes hacer la consulta:
+#### **Respuesta Esperada (Ejemplo):**
+```json
+{
+  "data": {
+    "addFutureViewing": {
+      "futureViewing": {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "name": "Robot Atardecer",
+        "age": 1,
+        "content": "Un robot melancólico observando un atardecer en un planeta alienígena, estilo cyberpunk",
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff",
+        "status": "PENDING",
+        "imageUrl": null,
+        "hasBeenViewed": false
+      }
+    }
+  }
+}
+
+```
+_(El `imageUrl` será `null` inicialmente y el `status` será `PENDING`. Se actualizarán cuando la imagen se genere y guarde correctamente)._
+
+### Query: Obtener "Future Viewings"
+Esta query recupera una lista paginada de los "future viewings".
 
 ```graphql
 query {
-  futureViewings(page: 1, pageSize: 10) { # You can also override the default pageSize
+  futureViewings(page: 1, pageSize: 5) {
     id
     name
-    createdAt
-    age
-    imageUrl
-    content
     status
+    imageUrl
+    createdAt
+    hasBeenViewed
+  }
+}
+
+```
+
+**Respuesta Esperada (Ejemplo):**
+``` json
+{
+  "data": {
+    "futureViewings": [
+      {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "name": "Robot Atardecer",
+        "status": "COMPLETED", // O PENDING/FAILED dependiendo del estado
+        "imageUrl": "/static/images/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.png", // Si se completó
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff",
+        "hasBeenViewed": false
+      }
+      // ... más resultados
+    ]
   }
 }
 ```
 
-### Pruebas usando otra cosa que no es localhost
 
-Puedes correr `ipconfig` en la terminal para ver tu IP local.
-e ir a `http://<tu-ip>:5000/graphql` para acceder a la API.
+## Solución de Problemas (Troubleshooting)
 
----
+*   **Problemas con contenedores desactualizados o dependencias:**
+    Si encuentras problemas relacionados con versiones antiguas de los contenedores o conflictos de dependencias, el siguiente comando puede ser muy útil. Este comando fuerza la reconstrucción de las imágenes, recrea los contenedores (incluso si ya existen y están actualizados) y no intenta iniciar dependencias que no estén explícitamente definidas para ser reconstruidas.
+    ```bash
+    docker-compose up --build --force-recreate --no-deps
+    ```
 
-## 8. Costos de operación
+*   **Verificar logs:**
+    Si la aplicación no se inicia correctamente, revisa los logs de los contenedores:
+    ```bash
+    docker-compose logs graphql-python-app
+    docker-compose logs graphql-workshop-postgres
+    ```
 
-- Cada imagen de 1024×1024 píxeles generada con DALL·E 3 tiene un costo aproximado de **USD $0.04** .
-- El servicio hace una llamada por mutación, por lo que el costo está directamente relacionado con el número de
-  solicitudes.
-
----
-
-## 9. Detención y mantenimiento
-
-```bash
-# Apagar la API (Ctrl-C) y la base de datos
-docker compose down
-```
-
-Para aplicar migraciones de Entity Framework (si las añades más adelante):
-
-```bash
-dotnet ef migrations add NombreMigracion
-dotnet ef database update
-```
-
-(Instala la herramienta EF CLI con `dotnet tool install --global dotnet-ef` si fuera necesario).
-
----
-
-## 10. Solución de problemas comunes
-
-| Síntoma                                 | Posible causa                                             | Acción sugerida                                                               |
-|-----------------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------|
-| Error al resolver `OPENAI_API_KEY`      | `.env` no cargado o clave vacía                           | Verifica el archivo `.env` y reinicia la API                                  |
-| `Cannot connect to host 127.0.0.1:5432` | Docker no está corriendo o el contenedor falla al iniciar | Ejecuta `docker compose ps -a` y revisa los logs con `docker compose logs -f` |
-| `status: Failed` en la imagen           | Clave de OpenAI inválida o cuota agotada                  | Confirma la validez de la clave y el estado de tu cuenta                      |
-
----
+*   **Detener la aplicación:**
+    Para detener los contenedores, presiona `Ctrl+C` en la terminal donde ejecutaste `docker-compose up`. Para detener y eliminar los contenedores:
+    ```bash
+    docker-compose down
+    ```
+    Si también quieres eliminar los volúmenes (¡esto borrará los datos de la base de datos!):
+    ```bash
+    docker-compose down -v
+    ```
