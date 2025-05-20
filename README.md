@@ -72,6 +72,96 @@ Sigue estos pasos para configurar y ejecutar el proyecto:
 5.  **Acceso a la base de datos:**
     La base de datos PostgreSQL estará accesible en el puerto `5432` de tu máquina local, utilizando las credenciales definidas en el archivo `.env` y `docker-compose.yml`.
 
+    ## Ejemplos de Operaciones GraphQL
+
+Puedes interactuar con la API GraphQL usando herramientas como Postman, Insomnia, o la interfaz GraphiQL que Ariadne podría proporcionar en `http://localhost:8000/graphql`.
+
+### Mutation: Añadir un nuevo "Future Viewing"
+
+Esta mutación crea un nuevo registro y encola la generación de una imagen.
+
+```graphql
+mutation {
+  addFutureViewing(
+    input: {
+      name: "Robot Atardecer"
+      age: 1
+      content: "Un robot melancólico observando un atardecer en un planeta alienígena, estilo cyberpunk"
+    }
+  ) {
+    futureViewing {
+      id
+      name
+      age
+      content
+      createdAt
+      status
+      imageUrl
+      hasBeenViewed
+    }
+  }
+}
+```
+
+#### **Respuesta Esperada (Ejemplo):**
+```json
+{
+  "data": {
+    "addFutureViewing": {
+      "futureViewing": {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "name": "Robot Atardecer",
+        "age": 1,
+        "content": "Un robot melancólico observando un atardecer en un planeta alienígena, estilo cyberpunk",
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff",
+        "status": "PENDING",
+        "imageUrl": null,
+        "hasBeenViewed": false
+      }
+    }
+  }
+}
+
+```
+_(El `imageUrl` será `null` inicialmente y el `status` será `PENDING`. Se actualizarán cuando la imagen se genere y guarde correctamente)._
+
+### Query: Obtener "Future Viewings"
+Esta query recupera una lista paginada de los "future viewings".
+
+```graphql
+query {
+  futureViewings(page: 1, pageSize: 5) {
+    id
+    name
+    status
+    imageUrl
+    createdAt
+    hasBeenViewed
+  }
+}
+
+```
+
+**Respuesta Esperada (Ejemplo):**
+``` json
+{
+  "data": {
+    "futureViewings": [
+      {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "name": "Robot Atardecer",
+        "status": "COMPLETED", // O PENDING/FAILED dependiendo del estado
+        "imageUrl": "/static/images/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.png", // Si se completó
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff",
+        "hasBeenViewed": false
+      }
+      // ... más resultados
+    ]
+  }
+}
+```
+
+
 ## Solución de Problemas (Troubleshooting)
 
 *   **Problemas con contenedores desactualizados o dependencias:**
