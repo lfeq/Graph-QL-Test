@@ -1,5 +1,7 @@
-from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql
+from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql, ScalarType
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+from graphql import GraphQLError
 from .db import get_db_session  # Importar el generador de sesión
 from . import crud
 from .models import ProcessingStatus as PyProcessingStatus, FutureViewing as ModelFutureViewing
@@ -49,6 +51,34 @@ type_defs = gql("""
 """)
 
 # Tipos de Query
+
+datetime_scalar = ScalarType("DateTime")
+
+@datetime_scalar.serializer
+def serialize_datetime(value):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return None # Or raise an error if the type is unexpected
+
+@datetime_scalar.value_parser
+def parse_datetime_value(value):
+    # This is called when the value is part of the input variables
+    try:
+        return datetime.fromisoformat(value)
+    except (ValueError, TypeError):
+        raise GraphQLError(f"'{value}' is not a valid ISO 8601 datetime string.")
+
+@datetime_scalar.literal_parser
+def parse_datetime_literal(ast, variables=None):
+    # This is called when the value is an inline argument in the query
+    from graphql import StringValueNode
+    if not isinstance(ast, StringValueNode):
+        raise GraphQLError(f"DateTime scalar expects a string literal, got {type(ast)}")
+    try:
+        return datetime.fromisoformat(ast.value)
+    except (ValueError, TypeError):
+        raise GraphQLError(f"'{ast.value}' is not a valid ISO 8601 datetime string.")
+
 query = QueryType()
 
 
@@ -77,6 +107,24 @@ async def resolve_add_future_viewing(_, info, input):
     age = input["age"]
     content = input["content"]
 
+    # Validation for name
+    if not name or name.isspace():
+        raise GraphQLError("Name cannot be empty.")
+    if len(name) > 100:
+        raise GraphQLError("Name must be 100 characters or less.")
+
+    # Validation for age
+    if not isinstance(age, int):
+        raise GraphQLError("Age must be an integer.") # Should be caught by GraphQL scalar type usually
+    if not (1 <= age <= 120):
+        raise GraphQLError("Age must be between 1 and 120.")
+
+    # Validation for content
+    if not content or content.isspace():
+        raise GraphQLError("Content cannot be empty.")
+    if len(content) > 4000:
+        raise GraphQLError("Content must be 4000 characters or less.")
+
     fv = await crud.create_future_viewing(db, name=name, age=age, content=content)
 
     # Encolar la tarea de generación de imagen
@@ -92,4 +140,4 @@ processing_status_enum = EnumType("ProcessingStatus", PyProcessingStatus)
 
 # Crear el esquema ejecutable
 # Asegúrate de incluir todos los QueryType, MutationType, y EnumType que definas.
-schema = make_executable_schema(type_defs, query, mutation, processing_status_enum)
+schema = make_executable_schema(type_defs, query, mutation, processing_status_enum, datetime_scalar)
