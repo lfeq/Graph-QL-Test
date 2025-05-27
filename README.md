@@ -188,3 +188,53 @@ query {
     ```bash
     docker-compose down -v
     ```
+
+## Script de Limpieza de Imágenes
+
+El script `app/cleanup_images.py` está diseñado para gestionar el espacio en disco del servidor eliminando automáticamente las imágenes antiguas.
+
+**Propósito:**
+Este script revisa el directorio `static/images/` y elimina cualquier imagen que tenga más de 14 días de antigüedad. Esto ayuda a prevenir que el disco se llene con imágenes que ya no son relevantes o necesarias.
+
+**Ejecución Manual:**
+Para ejecutar el script manualmente, navega a la raíz del proyecto en tu terminal y ejecuta:
+```bash
+python3 app/cleanup_images.py
+```
+Si estás utilizando un entorno virtual específico y `python3` no apunta a él directamente, asegúrate de usar el intérprete de Python de tu entorno virtual (por ejemplo, `venv/bin/python app/cleanup_images.py` si tu entorno está en una carpeta `venv`).
+
+### Programación de Ejecución Diaria
+
+Para asegurar que las imágenes antiguas se limpien regularmente, se recomienda programar la ejecución automática del script.
+
+**Linux/macOS (usando `cron`):**
+Puedes añadir una tarea cron para ejecutar el script diariamente. Por ejemplo, para ejecutarlo todos los días a medianoche:
+
+1.  Abre tu crontab para editarlo:
+    ```bash
+    crontab -e
+    ```
+2.  Añade una de las siguientes líneas, adaptándola a tu configuración y rutas:
+
+    *   **Ejemplo general (si `python3` está en el PATH y es el intérprete correcto):**
+        Reemplaza `/ruta/completa/a/tu/proyecto/` con la ruta absoluta a la raíz de este proyecto. Se recomienda también redirigir la salida a un archivo de log.
+        ```cron
+        0 0 * * * cd /ruta/completa/a/tu/proyecto/ && /usr/bin/python3 app/cleanup_images.py >> /ruta/completa/a/tu/proyecto/logs/cleanup.log 2>&1
+        ```
+
+    *   **Ejemplo usando un entorno virtual (común si usas `venv`):**
+        Reemplaza `/ruta/completa/a/tu/proyecto/` con la ruta absoluta a la raíz de este proyecto.
+        ```cron
+        0 0 * * * cd /ruta/completa/a/tu/proyecto/ && /ruta/completa/a/tu/proyecto/venv/bin/python app/cleanup_images.py >> /ruta/completa/a/tu/proyecto/logs/cleanup.log 2>&1
+        ```
+        Este ejemplo asume que tu entorno virtual se llama `venv` y está en la raíz del proyecto. También redirige la salida estándar y los errores a un archivo de log llamado `cleanup.log` (asegúrate de que la carpeta `logs` exista o ajusta la ruta).
+
+**Windows (usando el Programador de Tareas):**
+1.  Busca "Programador de Tareas" en el menú de inicio.
+2.  Crea una nueva tarea básica.
+3.  Configura el desencadenador para que se ejecute diariamente a la hora deseada.
+4.  Para la acción, configura "Iniciar un programa":
+    *   En "Programa/script": la ruta completa a tu intérprete de Python (ej. `C:\ruta\a\tu\proyecto\venv\Scripts\python.exe`).
+    *   En "Agregar argumentos (opcional)": la ruta completa al script (`app\cleanup_images.py`).
+    *   En "Iniciar en (opcional)": la ruta completa a la raíz de tu proyecto (`C:\ruta\a\tu\proyecto\`).
+Esto asegurará que el script se ejecute con las rutas correctas.
