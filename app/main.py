@@ -39,7 +39,7 @@ async def shutdown():
 
 # Configuración de CORS
 middleware = [
-    Middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
+    Middleware(CORSMiddleware, allow_origins=["https://example.com"], allow_methods=['*'], allow_headers=['*'])
 ]
 
 # Rutas de la aplicación
