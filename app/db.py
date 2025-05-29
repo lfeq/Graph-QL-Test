@@ -10,7 +10,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("No DATABASE_URL set for SQLAlchemy")
 
-engine = create_async_engine(DATABASE_URL, echo=True) # echo=True para logging SQL
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_size=10,      # or higher, based on your needs/server limit
+    max_overflow=20,   # or higher
+    pool_timeout=30,   # default, adjust as needed
+)
 AsyncSessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
 )

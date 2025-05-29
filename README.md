@@ -24,22 +24,12 @@ Sigue estos pasos para configurar y ejecutar el proyecto:
     En la raíz del proyecto, crea un archivo llamado `.env` con las siguientes variables de entorno. Este archivo será utilizado por `docker-compose.yml` para configurar la aplicación y la base de datos.
 
     ```env
-    # Credenciales para la base de datos PostgreSQL (deben coincidir con docker-compose.yml)
-    POSTGRES_USER=graphql_workshop
-    POSTGRES_PASSWORD=secret
-    POSTGRES_DB=graphql_workshop
-    POSTGRES_HOST=graphql-workshop-postgres # Nombre del servicio de postgres en docker-compose
-    POSTGRES_PORT=5432
-
-    # Clave API de OpenAI
-    OPENAI_API_KEY="tu_clave_api_de_openai"
-
-    # Directorio para datos de la aplicación (opcional, para configurar rutas si es necesario)
-    # APP_DATA_DIR="app/images" 
-
-    DATABASE_URL="postgresql+asyncpg://graphql_workshop:secret@graphql-workshop-postgres:5432/graphql_workshop
+    OPENAI_API_KEY=<tu_clave_api_de_openai>
+    DATABASE_URL="postgresql+asyncpg://graphql_workshop:secret@graphql-workshop-postgres:5432/graphql_workshop"
+    STATIC_FILES_DIR="static"
+    IMAGES_SUBDIR="images"
     ```
-    **Importante**: Reemplaza `"tu_clave_api_de_openai"` con tu clave API real de OpenAI.
+    **Importante**: Reemplaza `<tu_clave_api_de_openai>` con tu clave API real de OpenAI.
 
 3.  **Verifica los requisitos de Python (Opcional - para desarrollo local):**
     Si planeas desarrollar o ejecutar la aplicación fuera de Docker, asegúrate de tener un entorno virtual y de instalar las dependencias:
