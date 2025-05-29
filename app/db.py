@@ -12,7 +12,7 @@ if not DATABASE_URL:
 
 engine = create_async_engine(
     DATABASE_URL,
-    echo=True,
+    echo=False,        # Change to True for debugging SQL queries
     pool_size=10,      # or higher, based on your needs/server limit
     max_overflow=20,   # or higher
     pool_timeout=30,   # default, adjust as needed
