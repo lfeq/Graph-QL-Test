@@ -39,7 +39,7 @@ fileConfig(config.config_file_name)
 
 # Obtén la URL síncrona desde la variable de entorno:
 SYNC_DATABASE_URL = os.getenv("SYNC_DATABASE_URL_DOCKER")
-# SYNC_DATABASE_URL = os.getenv("SYNC_DATABASE_URL") # Descomentar cuando se corre en local
+#SYNC_DATABASE_URL = os.getenv("SYNC_DATABASE_URL") # Descomentar cuando se corre en local
 if not SYNC_DATABASE_URL:
     raise ValueError("No se encontró SYNC_DATABASE_URL en .env. Alembic necesita un URL síncrono.")
 
