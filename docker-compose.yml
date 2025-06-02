@@ -25,7 +25,8 @@ services:
     ports:
       - "8000:8000" # Puerto de la aplicación Python
     depends_on:
-      - graphql-workshop-postgres
+      graphql-workshop-postgres:
+        condition: service_healthy
     networks: [graphql-workshop-network]
     env_file:
       - .env # Carga variables de entorno desde el archivo .env
