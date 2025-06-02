@@ -1,5 +1,5 @@
 import uuid  # Added for screenId conversion
-from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql
+from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql, GraphQLError # GraphQLError imported
 from sqlalchemy.ext.asyncio import AsyncSession
 from .db import get_db_session  # Importar el generador de sesión
 from . import crud
@@ -100,6 +100,7 @@ async def resolve_recent_future_viewings(_, info, screenId, page=1, pageSize=20)
     Fetches FutureViewing items that are completed, created in the last 24 hours,
     and not yet viewed on the specified screen. It then marks these items as viewed
     on that screen by creating ScreenViewings entries.
+    Handles potential ValueError if screenId is not a valid UUID, raising GraphQLError.
 
     Args:
         _ : The parent object, typically not used in root resolvers.
@@ -111,9 +112,15 @@ async def resolve_recent_future_viewings(_, info, screenId, page=1, pageSize=20)
     Returns:
         list[dict]: A list of FutureViewing objects (as dictionaries via to_dict())
                     to be displayed on the screen.
+    Raises:
+        GraphQLError: If the provided screenId is not a valid UUID.
     """
     db: AsyncSession = info.context["db"]
-    screen_id_uuid = uuid.UUID(screenId)  # Convert screenId to UUID
+    try:
+        screen_id_uuid = uuid.UUID(screenId)
+    except ValueError:
+        raise GraphQLError("Invalid screenId format. Please provide a valid UUID.")
+
     viewings = await crud.get_recent_future_viewings_and_mark_viewed(
         db, screen_id=screen_id_uuid, page=page, page_size=pageSize
     )
