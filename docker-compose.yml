@@ -27,7 +27,11 @@ services:
     volumes:
       - ./app:/app/app # Monta el código de tu aplicación para desarrollo (hot-reloading)
       - ./static:/app/static # Monta el directorio de estáticos para persistir imágenes
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # Comando para iniciar la app con hot-reloading
+    command: >
+      bash -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
 
 networks:
   graphql-workshop-network: # Nombre de la red
