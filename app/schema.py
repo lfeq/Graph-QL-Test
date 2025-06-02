@@ -38,28 +38,45 @@ type_defs = gql("""
         # Puedes añadir userErrors aquí si implementas validación más compleja
     }
 
+    # Input type for registering a new screen.
     input RegisterScreenInput {
+        # Optional friendly name for the screen.
         name: String
     }
 
+    # Represents a display screen.
     type Screen {
+        # Unique identifier for the screen.
         id: ID!
+        # Optional friendly name of the screen.
         name: String
+        # Timestamp of when the screen was registered.
         createdAt: DateTime!
     }
 
+    # Payload type for the registerScreen mutation.
     type RegisterScreenPayload {
+        # The newly registered screen, if successful.
         screen: Screen
-        # userErrors: [UserError!]
+        # userErrors: [UserError!] # Placeholder for future error handling.
     }
 
     type Query {
         futureViewings(page: Int = 1, pageSize: Int = 20): [FutureViewing!]!
-        recentFutureViewings(screenId: ID!, page: Int = 1, pageSize: Int = 20): [FutureViewing!]!
+        # Fetches recent FutureViewings that have not yet been displayed on a specific screen.
+        # Marks fetched viewings as displayed on the given screen.
+        recentFutureViewings(
+            # The ID of the screen making the request. This is mandatory to ensure
+            # viewings are correctly tracked per screen.
+            screenId: ID!,
+            page: Int = 1,
+            pageSize: Int = 20
+        ): [FutureViewing!]!
     }
 
     type Mutation {
         addFutureViewing(input: AddFutureViewingInput!): AddFutureViewingPayload!
+        # Mutation to register a new screen.
         registerScreen(input: RegisterScreenInput!): RegisterScreenPayload!
     }
 """)
@@ -77,6 +94,24 @@ async def resolve_future_viewings(_, info, page=1, pageSize=20):
 
 @query.field("recentFutureViewings")
 async def resolve_recent_future_viewings(_, info, screenId, page=1, pageSize=20):
+    """
+    Resolves the `recentFutureViewings` GraphQL query.
+
+    Fetches FutureViewing items that are completed, created in the last 24 hours,
+    and not yet viewed on the specified screen. It then marks these items as viewed
+    on that screen by creating ScreenViewings entries.
+
+    Args:
+        _ : The parent object, typically not used in root resolvers.
+        info: GraphQL resolve info, contains context like the db session.
+        screenId (str): The ID of the screen (as a string from GraphQL) requesting viewings.
+        page (int): The page number for pagination.
+        pageSize (int): The number of items per page.
+
+    Returns:
+        list[dict]: A list of FutureViewing objects (as dictionaries via to_dict())
+                    to be displayed on the screen.
+    """
     db: AsyncSession = info.context["db"]
     screen_id_uuid = uuid.UUID(screenId)  # Convert screenId to UUID
     viewings = await crud.get_recent_future_viewings_and_mark_viewed(
@@ -91,6 +126,22 @@ mutation = MutationType()
 
 @mutation.field("addFutureViewing")
 async def resolve_add_future_viewing(_, info, input):
+    """
+    Resolves the `addFutureViewing` GraphQL mutation.
+
+    Creates a new FutureViewing record based on the provided input,
+    and enqueues a background task for image generation.
+
+    Args:
+        _ : The parent object, typically not used in root resolvers.
+        info: GraphQL resolve info, contains context like the db session.
+        input (dict): A dictionary containing the input fields for the new
+                      FutureViewing (name, age, content).
+
+    Returns:
+        dict: A payload containing the newly created FutureViewing object
+              (as a dictionary via to_dict()).
+    """
     db: AsyncSession = info.context["db"]
     name = input["name"]
     age = input["age"]
@@ -107,6 +158,21 @@ async def resolve_add_future_viewing(_, info, input):
 
 @mutation.field("registerScreen")
 async def resolve_register_screen(_, info, input):
+    """
+    Resolves the `registerScreen` GraphQL mutation.
+
+    Registers a new screen, optionally with a name.
+
+    Args:
+        _ : The parent object, typically not used in root resolvers.
+        info: GraphQL resolve info, contains context like the db session.
+        input (dict): A dictionary containing the input fields for screen registration.
+                      May contain an optional 'name' for the screen.
+
+    Returns:
+        dict: A payload containing the newly registered Screen object
+              (as a dictionary via to_dict()).
+    """
     db: AsyncSession = info.context["db"]
     name = input.get("name")  # Optional name
 

@@ -1,6 +1,7 @@
 # Proyecto GraphQL con Python y PostgreSQL
 
 Este repositorio contiene una aplicación Python que utiliza GraphQL con Ariadne, SQLAlchemy para la interacción con una base de datos PostgreSQL, y OpenAI para la generación de imágenes. La aplicación está contenerizada utilizando Docker.
+La aplicación ahora incluye funcionalidades para **visualización en múltiples pantallas**, permitiendo que diferentes clientes (pantallas) muestren imágenes generadas sin repeticiones en la misma pantalla y gestionando el estado de visualización de forma independiente para cada una.
 
 ## Requisitos Previos
 
@@ -38,16 +39,6 @@ Sigue estos pasos para configurar y ejecutar el proyecto:
     source venv/bin/activate  # En Windows: venv\Scripts\activate
     pip install -r requirements.txt
     ```
-    Las dependencias principales incluyen:
-    *   `ariadne[asgi-starlette]`
-    *   `uvicorn[standard]`
-    *   `SQLAlchemy[asyncpg]`
-    *   `alembic`
-    *   `python-dotenv`
-    *   `openai`
-    *   `aiofiles`
-    *   `Pillow`
-    *   `psycopg2-binary` (o `asyncpg` que ya está listado)
 
 4.  **Ejecuta la aplicación con Docker Compose:**
     Este comando construirá las imágenes de Docker (si no existen) y levantará los servicios definidos en `docker-compose.yml` (la aplicación Python y la base de datos PostgreSQL).
@@ -59,18 +50,125 @@ Sigue estos pasos para configurar y ejecutar el proyecto:
     docker-compose up --build
     ```
 
-    La aplicación Python estará disponible en `http://localhost:8000`. La interfaz de GraphQL (GraphiQL o similar, dependiendo de la configuración de Ariadne) debería estar accesible en `http://localhost:8000/graphql` (o la ruta que hayas configurado).
+    La aplicación Python estará disponible en `http://localhost:8000`. La interfaz de GraphQL (GraphiQL) debería estar accesible en `http://localhost:8000/graphql`.
 
 5.  **Acceso a la base de datos:**
     La base de datos PostgreSQL estará accesible en el puerto `5432` de tu máquina local, utilizando las credenciales definidas en el archivo `.env` y `docker-compose.yml`.
 
-    ## Ejemplos de Operaciones GraphQL
+## Multi-Screen Viewing & Screen Registration
 
-Puedes interactuar con la API GraphQL usando herramientas como Postman, Insomnia, o la interfaz GraphiQL que Ariadne podría proporcionar en `http://localhost:8000/graphql`.
+Para gestionar la visualización de imágenes en múltiples pantallas de forma independiente y evitar repeticiones en una misma pantalla, se han introducido los siguientes cambios y conceptos:
 
-### Mutation: Añadir un nuevo "Future Viewing"
+*   **Eliminación de `has_been_viewed`**: El campo booleano `has_been_viewed` que existía anteriormente en el modelo `FutureViewing` ha sido eliminado. El estado de visualización ya no es global para una imagen, sino específico para cada pantalla.
+*   **Nuevos Modelos de Datos**:
+    *   **`Screens`**: Esta tabla registra cada pantalla o cliente que interactúa con el sistema. Cada pantalla obtiene un ID único al registrarse.
+        *   `id`: UUID, identificador único de la pantalla.
+        *   `name`: String (opcional), nombre descriptivo para la pantalla (ej. "Lobby Izquierdo").
+        *   `created_at`: DateTime, fecha y hora de registro.
+    *   **`ScreenViewings`**: Esta tabla actúa como un registro de qué `FutureViewing` (imagen) ha sido mostrada en qué `Screen`. Cada vez que una pantalla obtiene una imagen a través de la query `recentFutureViewings`, se crea una entrada aquí.
+        *   `id`: UUID, identificador único del evento de visualización.
+        *   `future_viewing_id`: UUID, referencia a la imagen mostrada.
+        *   `screen_id`: UUID, referencia a la pantalla donde se mostró.
+        *   `viewed_at`: DateTime, fecha y hora de la visualización.
+    Esto permite que cada pantalla consulte las imágenes que aún no ha mostrado, independientemente de otras pantallas.
 
-Esta mutación crea un nuevo registro y encola la generación de una imagen.
+## Ejemplos de Operaciones GraphQL
+
+Puedes interactuar con la API GraphQL usando herramientas como Postman, Insomnia, o la interfaz GraphiQL que Ariadne proporciona en `http://localhost:8000/graphql`.
+
+### Mutation: `registerScreen`
+
+Esta mutación permite a un nuevo cliente/pantalla registrarse en el sistema para obtener un `screenId` único. Este ID es **esencial** para luego solicitar imágenes.
+
+*   **Propósito**: Registrar una nueva pantalla/cliente.
+*   **Input**: `RegisterScreenInput { name: String }` (el campo `name` es opcional).
+*   **Output**: `RegisterScreenPayload { screen: Screen { id: ID!, name: String, createdAt: DateTime! } }`. El `id` devuelto en `screen.id` debe ser guardado por el cliente para usarlo como `screenId` en la query `recentFutureViewings`.
+
+**Ejemplo (con nombre):**
+```graphql
+mutation {
+  registerScreen(input: {name: "Lobby Principal"}) {
+    screen {
+      id
+      name
+      createdAt
+    }
+  }
+}
+```
+
+**Ejemplo (sin nombre):**
+```graphql
+mutation {
+  registerScreen(input: {}) { # El nombre es opcional
+    screen {
+      id
+      createdAt # El nombre será null en este caso
+    }
+  }
+}
+```
+**Respuesta Esperada (Ejemplo con nombre):**
+```json
+{
+  "data": {
+    "registerScreen": {
+      "screen": {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", // Este es el screenId a usar
+        "name": "Lobby Principal",
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff"
+      }
+    }
+  }
+}
+```
+
+### Query: `recentFutureViewings` (Actualizada)
+
+Esta query recupera una lista paginada de "future viewings" recientes que están completados y que **no han sido mostrados previamente en la pantalla especificada por `screenId`**.
+
+*   **Propósito**: Obtener imágenes nuevas para una pantalla específica.
+*   **Argumentos**:
+    *   `screenId: ID!` (Obligatorio): El ID único de la pantalla (obtenido de la mutación `registerScreen`).
+    *   `page: Int` (Opcional, por defecto: 1).
+    *   `pageSize: Int` (Opcional, por defecto: 20).
+*   **Output**: `[FutureViewing!]!` (Lista de objetos `FutureViewing`).
+
+**Ejemplo:**
+```graphql
+query {
+  recentFutureViewings(screenId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", pageSize: 5) {
+    id
+    name
+    imageUrl
+    status # Debería ser COMPLETED
+    createdAt
+    # hasBeenViewed ya no existe
+  }
+}
+```
+
+**Respuesta Esperada (Ejemplo):**
+```json
+{
+  "data": {
+    "recentFutureViewings": [
+      {
+        "id": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+        "name": "Paisaje Futurista",
+        "imageUrl": "/static/images/yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy.png",
+        "status": "COMPLETED",
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff"
+      }
+      // ... más resultados si los hay
+    ]
+  }
+}
+```
+
+### Mutation: `addFutureViewing`
+
+Esta mutación crea un nuevo registro de "future viewing" y encola la generación de una imagen asociada.
 
 ```graphql
 mutation {
@@ -89,36 +187,34 @@ mutation {
       createdAt
       status
       imageUrl
-      hasBeenViewed
+      # hasBeenViewed ya no existe
     }
   }
 }
 ```
 
-#### **Respuesta Esperada (Ejemplo):**
+**Respuesta Esperada (Ejemplo):**
 ```json
 {
   "data": {
     "addFutureViewing": {
       "futureViewing": {
-        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "id": "zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz",
         "name": "Robot Atardecer",
         "age": 1,
         "content": "Un robot melancólico observando un atardecer en un planeta alienígena, estilo cyberpunk",
         "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff",
-        "status": "PENDING",
-        "imageUrl": null,
-        "hasBeenViewed": false
+        "status": "PENDING", // Inicialmente PENDING
+        "imageUrl": null
       }
     }
   }
 }
-
 ```
 _(El `imageUrl` será `null` inicialmente y el `status` será `PENDING`. Se actualizarán cuando la imagen se genere y guarde correctamente)._
 
-### Query: Obtener "Future Viewings"
-Esta query recupera una lista paginada de los "future viewings".
+### Query: `futureViewings` (General)
+Esta query recupera una lista paginada de todos los "future viewings", sin considerar el estado de visualización por pantalla. Puede ser útil para administración o una vista general.
 
 ```graphql
 query {
@@ -128,24 +224,22 @@ query {
     status
     imageUrl
     createdAt
-    hasBeenViewed
+    # hasBeenViewed ya no existe
   }
 }
-
 ```
 
 **Respuesta Esperada (Ejemplo):**
-``` json
+```json
 {
   "data": {
     "futureViewings": [
       {
         "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
         "name": "Robot Atardecer",
-        "status": "COMPLETED", // O PENDING/FAILED dependiendo del estado
-        "imageUrl": "/static/images/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.png", // Si se completó
-        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff",
-        "hasBeenViewed": false
+        "status": "COMPLETED",
+        "imageUrl": "/static/images/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.png",
+        "createdAt": "YYYY-MM-DDTHH:MM:SS.ffffff"
       }
       // ... más resultados
     ]
@@ -153,6 +247,19 @@ query {
 }
 ```
 
+## Flujo de Trabajo del Cliente (Pantalla)
+
+1.  **Inicio de la Aplicación Cliente (Pantalla)**: La aplicación que mostrará las imágenes se inicia.
+2.  **Registro de la Pantalla**:
+    *   Al primer inicio, o si no tiene un `screenId` guardado, el cliente llama a la mutación `registerScreen`.
+    *   Puede proporcionar un nombre opcional (ej. "Pantalla Lobby Puerta Norte").
+    *   El cliente **debe guardar de forma persistente** el `screen.id` recibido en la respuesta. Este es su identificador único.
+3.  **Solicitud de Imágenes**:
+    *   El cliente utiliza el `screen.id` guardado para llamar periódicamente a la query `recentFutureViewings(screenId: "su-id-guardado", ...)`.
+    *   El servidor devolverá una lista de imágenes que esta pantalla específica aún no ha mostrado.
+    *   Internamente, el servidor registrará estas imágenes como "vistas" por esta pantalla en la tabla `ScreenViewings`.
+4.  **Visualización**: El cliente muestra las imágenes recibidas.
+Este flujo asegura que cada pantalla opere de manera independiente, mostrando un carrusel de imágenes sin repetir contenido ya mostrado en esa misma pantalla, y sin ser afectada por lo que otras pantallas hayan mostrado.
 
 ## Solución de Problemas (Troubleshooting)
 

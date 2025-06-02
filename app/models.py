@@ -7,11 +7,27 @@ from enum import Enum
 from .db import Base
 
 class ProcessingStatus(Enum):
-    PENDING = "PENDING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
+    """
+    Represents the status of a background processing task, typically for image generation.
+    """
+    PENDING = "PENDING"  # Task is awaiting processing.
+    COMPLETED = "COMPLETED"  # Task has finished successfully.
+    FAILED = "FAILED"  # Task encountered an error and did not complete.
 
 class FutureViewing(Base):
+    """
+    Represents a 'future viewing' concept, storing user-provided data
+    and an associated generated image URL and processing status.
+
+    Attributes:
+        id (uuid.UUID): Primary key, unique identifier for the future viewing.
+        name (str): Name associated with the viewing.
+        age (int): Age associated with the viewing.
+        content (str): Content or prompt for the viewing.
+        created_at (datetime): Timestamp of when the record was created.
+        image_url (str, optional): URL of the generated image, if available.
+        status (ProcessingStatus): Current processing status of the image generation.
+    """
     __tablename__ = "future_viewings"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -23,6 +39,14 @@ class FutureViewing(Base):
     status = Column(SQLAlchemyEnum(ProcessingStatus), default=ProcessingStatus.PENDING, nullable=False)
 
     def to_dict(self):
+        """
+        Returns a dictionary representation of the FutureViewing instance,
+        suitable for serialization (e.g., in API responses).
+
+        Returns:
+            dict: A dictionary containing key-value pairs for the model's attributes.
+                  The 'id' is converted to a string, and 'createdAt' is ISO formatted.
+        """
         return {
             "id": str(self.id),
             "name": self.name,
@@ -34,6 +58,14 @@ class FutureViewing(Base):
         }
 
 class Screens(Base):
+    """
+    Represents a display screen that can show FutureViewings.
+
+    Attributes:
+        id (uuid.UUID): Primary key, unique identifier for the screen.
+        name (str, optional): An optional friendly name for the screen (e.g., "Lobby Screen").
+        created_at (datetime): Timestamp of when the screen record was created.
+    """
     __tablename__ = "screens"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -41,6 +73,14 @@ class Screens(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     def to_dict(self):
+        """
+        Returns a dictionary representation of the Screens instance,
+        suitable for serialization.
+
+        Returns:
+            dict: A dictionary containing key-value pairs for the model's attributes.
+                  The 'id' is converted to a string, and 'createdAt' is ISO formatted.
+        """
         return {
             "id": str(self.id),
             "name": self.name,
@@ -48,6 +88,16 @@ class Screens(Base):
         }
 
 class ScreenViewings(Base):
+    """
+    Represents the event of a specific FutureViewing being shown on a specific Screen.
+    This acts as a join table to track which future viewings have been displayed on which screens.
+
+    Attributes:
+        id (uuid.UUID): Primary key, unique identifier for this viewing event.
+        future_viewing_id (uuid.UUID): Foreign key linking to the FutureViewing record.
+        screen_id (uuid.UUID): Foreign key linking to the Screens record.
+        viewed_at (datetime): Timestamp of when the FutureViewing was displayed on the screen.
+    """
     __tablename__ = "screen_viewings"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
