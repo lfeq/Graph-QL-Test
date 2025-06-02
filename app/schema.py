@@ -1,5 +1,6 @@
 import uuid  # Added for screenId conversion
-from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql, GraphQLError # GraphQLError imported
+from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql
+from graphql import GraphQLError
 from sqlalchemy.ext.asyncio import AsyncSession
 from .db import get_db_session  # Importar el generador de sesión
 from . import crud

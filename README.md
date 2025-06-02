@@ -103,7 +103,8 @@ mutation {
   registerScreen(input: {}) { # El nombre es opcional
     screen {
       id
-      createdAt # El nombre será null en este caso
+      name # El nombre será null en este caso
+      createdAt 
     }
   }
 }
