@@ -103,7 +103,6 @@ mutation {
   registerScreen(input: {}) { # El nombre es opcional
     screen {
       id
-      name # El nombre será null en este caso
       createdAt 
     }
   }
@@ -261,6 +260,96 @@ query {
     *   Internamente, el servidor registrará estas imágenes como "vistas" por esta pantalla en la tabla `ScreenViewings`.
 4.  **Visualización**: El cliente muestra las imágenes recibidas.
 Este flujo asegura que cada pantalla opere de manera independiente, mostrando un carrusel de imágenes sin repetir contenido ya mostrado en esa misma pantalla, y sin ser afectada por lo que otras pantallas hayan mostrado.
+
+## Migraciones de Base de Datos (Alembic)
+
+Este proyecto utiliza Alembic para gestionar y versionar los cambios en el esquema de la base de datos PostgreSQL.
+### ¿Qué son las migraciones?
+
+Las migraciones permiten:
+
+- Crear y modificar tablas y columnas de manera controlada y reproducible.
+- Mantener sincronizados todos los entornos (desarrollo, pruebas, producción) con la misma estructura de base de datos.
+- Llevar un historial de todos los cambios realizados al esquema.
+
+### ¿Cuándo crear una migración?
+
+Cada vez que cambies tus modelos (por ejemplo, agregar/quitar campos o tablas), debes generar una nueva migración para reflejar esos cambios en la base de datos.
+
+---
+
+#### Resetear la Base y Crear una Migración Inicial
+
+Si necesitas borrar toda la base (por ejemplo, para empezar de cero o porque la migración inicial está vacía o incorrecta), sigue estos pasos:
+1. Borra todas las tablas de la base de datos
+
+Esto elimina todo el esquema (¡y los datos!).
+
+```bash
+docker-compose exec graphql-workshop-postgres psql -U graphql_workshop -d graphql_workshop -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+```
+
+2. Elimina las migraciones viejas
+
+Esto borra los archivos de migraciones existentes (¡no borres la carpeta alembic/versions/, solo sus archivos!):
+
+```bash
+rm alembic/versions/*.py
+```
+
+3. Crea la migración inicial (detecta todas las tablas actuales de tus modelos)
+
+```bash
+alembic revision --autogenerate -m "migracion inicial"
+```
+
+4. Verifica que el archivo generado SÍ tenga instrucciones para crear tablas
+
+Abre el archivo generado en alembic/versions/ y asegúrate de que contiene comandos como op.create_table(...), no solo pass.
+
+```bash
+cat alembic/versions/*.py
+```
+
+5. Aplica la migración
+
+Esto creará todas las tablas en la base:
+
+```bash
+alembic upgrade head
+```
+
+6. Verifica las tablas en la base
+
+Comprueba que la base ahora tiene las tablas correctas:
+
+```bash
+docker-compose exec graphql-workshop-postgres psql -U graphql_workshop -d graphql_workshop -c "\dt"
+```
+
+### 🚨 Notas importantes
+
+- Solo elimina todo y vuelve a crear la migración inicial si NO tienes datos importantes que quieras conservar.
+
+- Si ya existe historial de migraciones y datos en producción, nunca borres la base sin hacer respaldo.
+
+- Si colaboras en equipo, versiona siempre tu carpeta alembic/versions/ en git.
+
+### 🛠️ Migraciones en desarrollo
+
+Cuando solo quieras agregar cambios nuevos (no reiniciar todo):
+
+1. Modifica tus modelos.
+
+2. Crea una migración:
+```bash
+alembic revision --autogenerate -m "describe tu cambio"
+```
+3. Aplica la migración:
+
+```bash
+alembic upgrade head
+```
 
 ## Solución de Problemas (Troubleshooting)
 
