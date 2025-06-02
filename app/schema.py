@@ -1,3 +1,4 @@
+import uuid  # Added for screenId conversion
 from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql
 from sqlalchemy.ext.asyncio import AsyncSession
 from .db import get_db_session  # Importar el generador de sesión
@@ -24,7 +25,6 @@ type_defs = gql("""
         createdAt: DateTime!
         imageUrl: String
         status: ProcessingStatus!
-        hasBeenViewed: Boolean!
     }
 
     input AddFutureViewingInput {
@@ -38,13 +38,29 @@ type_defs = gql("""
         # Puedes añadir userErrors aquí si implementas validación más compleja
     }
 
+    input RegisterScreenInput {
+        name: String
+    }
+
+    type Screen {
+        id: ID!
+        name: String
+        createdAt: DateTime!
+    }
+
+    type RegisterScreenPayload {
+        screen: Screen
+        # userErrors: [UserError!]
+    }
+
     type Query {
         futureViewings(page: Int = 1, pageSize: Int = 20): [FutureViewing!]!
-        recentFutureViewings(page: Int = 1, pageSize: Int = 20): [FutureViewing!]!
+        recentFutureViewings(screenId: ID!, page: Int = 1, pageSize: Int = 20): [FutureViewing!]!
     }
 
     type Mutation {
         addFutureViewing(input: AddFutureViewingInput!): AddFutureViewingPayload!
+        registerScreen(input: RegisterScreenInput!): RegisterScreenPayload!
     }
 """)
 
@@ -60,9 +76,12 @@ async def resolve_future_viewings(_, info, page=1, pageSize=20):
 
 
 @query.field("recentFutureViewings")
-async def resolve_recent_future_viewings(_, info, page=1, pageSize=20):
+async def resolve_recent_future_viewings(_, info, screenId, page=1, pageSize=20):
     db: AsyncSession = info.context["db"]
-    viewings = await crud.get_recent_future_viewings_and_mark_viewed(db, page=page, page_size=pageSize)
+    screen_id_uuid = uuid.UUID(screenId)  # Convert screenId to UUID
+    viewings = await crud.get_recent_future_viewings_and_mark_viewed(
+        db, screen_id=screen_id_uuid, page=page, page_size=pageSize
+    )
     return [v.to_dict() for v in viewings]
 
 
@@ -84,6 +103,15 @@ async def resolve_add_future_viewing(_, info, input):
     await enqueue_image_generation(str(fv.id), fv.name, fv.age, fv.content)
 
     return {"futureViewing": fv.to_dict()}
+
+
+@mutation.field("registerScreen")
+async def resolve_register_screen(_, info, input):
+    db: AsyncSession = info.context["db"]
+    name = input.get("name")  # Optional name
+
+    registered_screen = await crud.register_screen(db, screen_name=name)
+    return {"screen": registered_screen.to_dict()}
 
 
 # EnumType para mapear el enum de Python al de GraphQL

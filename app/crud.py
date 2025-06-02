@@ -1,7 +1,8 @@
+import uuid # Added for screen_id type hint
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc, update, and_
-from .models import FutureViewing, ProcessingStatus
+from sqlalchemy import desc, and_, update # update re-added
+from .models import FutureViewing, ProcessingStatus, ScreenViewings, Screens # Added ScreenViewings and Screens
 from datetime import datetime, timedelta, timezone
 
 
@@ -54,6 +55,18 @@ async def update_future_viewing_status(db: AsyncSession, fv_id: str, status: Pro
     return updated_fv
 
 
+async def register_screen(db: AsyncSession, screen_name: str | None = None) -> Screens:
+    """
+    Registers a new screen. If screen_name is provided, it's used for the name.
+    Otherwise, the name field will be None.
+    """
+    new_screen = Screens(name=screen_name)
+    db.add(new_screen)
+    await db.commit()
+    await db.refresh(new_screen)
+    return new_screen
+
+
 async def get_future_viewings_paginated(db: AsyncSession, page: int = 1, page_size: int = 20):
     if page <= 0: page = 1
     if page_size <= 0: page_size = 20
@@ -67,7 +80,7 @@ async def get_future_viewings_paginated(db: AsyncSession, page: int = 1, page_si
     return result.scalars().all()
 
 
-async def get_recent_future_viewings_and_mark_viewed(db: AsyncSession, page: int = 1, page_size: int = 20):
+async def get_recent_future_viewings_and_mark_viewed(db: AsyncSession, screen_id: uuid.UUID, page: int = 1, page_size: int = 20):
     if page <= 0: page = 1
     if page_size <= 0: page_size = 20
     offset = (page - 1) * page_size
@@ -81,10 +94,14 @@ async def get_recent_future_viewings_and_mark_viewed(db: AsyncSession, page: int
             and_(
                 FutureViewing.status == ProcessingStatus.COMPLETED,
                 FutureViewing.created_at >= twenty_four_hours_ago,
-                FutureViewing.has_been_viewed == False
+                ~select(ScreenViewings.id) # Subquery for NOT EXISTS
+                .where(
+                    ScreenViewings.future_viewing_id == FutureViewing.id,
+                    ScreenViewings.screen_id == screen_id
+                ).exists()
             )
         )
-        .order_by(desc(FutureViewing.created_at))  # Obtener en orden descendente
+        .order_by(desc(FutureViewing.created_at))
         .offset(offset)
         .limit(page_size)
     )
@@ -94,22 +111,22 @@ async def get_recent_future_viewings_and_mark_viewed(db: AsyncSession, page: int
     if not images_to_show:
         return []
 
-    # 2. Marcar como vistas
-    image_ids_to_update = [img.id for img in images_to_show]
-    update_stmt = (
-        update(FutureViewing)
-        .where(FutureViewing.id.in_(image_ids_to_update))
-        .values(has_been_viewed=True)
-    )
-    await db.execute(update_stmt)
+    # 2. Create ScreenViewings entries
+    new_screen_viewings = [
+        ScreenViewings(future_viewing_id=img.id, screen_id=screen_id)
+        for img in images_to_show
+    ]
+    db.add_all(new_screen_viewings)
     await db.commit()
 
-    # 3. Revertir el orden para la presentación (como en el C# original)
+    # 3. Revertir el orden para la presentación
     images_to_show.reverse()
 
     # Refrescar las entidades para obtener el estado `has_been_viewed` actualizado
-    # Esto no es estrictamente necesario si solo devuelves los datos ya obtenidos,
-    # pero es bueno si quieres los objetos completos y actualizados.
+    # Esto no es estrictamente necesario si solo devuelves los datos ya obtenidos
+    # (since has_been_viewed is gone from FutureViewing),
+    # pero es bueno si quieres los objetos completos y actualizados por otras razones
+    # o si relationships were involved that needed refreshing.
     refreshed_images = []
     for img in images_to_show:
         await db.refresh(img)
