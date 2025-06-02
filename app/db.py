@@ -2,6 +2,7 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
+# Removed: from app.models import FutureViewing, Screens, ScreenViewings
 
 load_dotenv() # Carga variables desde .env
 
