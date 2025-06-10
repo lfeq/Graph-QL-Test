@@ -2,7 +2,7 @@ import uuid  # Added for screenId conversion
 from ariadne import QueryType, MutationType, EnumType, make_executable_schema, gql
 from graphql import GraphQLError
 from sqlalchemy.ext.asyncio import AsyncSession
-from .db import get_db_session  # Importar el generador de sesión
+from .db import get_db_session, AsyncSessionLocal  # Importar el generador de sesión
 from . import crud
 from .models import ProcessingStatus as PyProcessingStatus, FutureViewing as ModelFutureViewing
 from .background import enqueue_image_generation
@@ -88,9 +88,9 @@ query = QueryType()
 
 @query.field("futureViewings")
 async def resolve_future_viewings(_, info, page=1, pageSize=20):
-    db: AsyncSession = info.context["db"]  # Obtener sesión de BD del contexto
-    viewings = await crud.get_future_viewings_paginated(db, page=page, page_size=pageSize)
-    return [v.to_dict() for v in viewings]
+    async with AsyncSessionLocal() as db:
+        viewings = await crud.get_future_viewings_paginated(db, page=page, page_size=pageSize)
+        return [v.to_dict() for v in viewings]
 
 
 @query.field("recentFutureViewings")
@@ -116,16 +116,16 @@ async def resolve_recent_future_viewings(_, info, screenId, page=1, pageSize=20)
     Raises:
         GraphQLError: If the provided screenId is not a valid UUID.
     """
-    db: AsyncSession = info.context["db"]
-    try:
-        screen_id_uuid = uuid.UUID(screenId)
-    except ValueError:
-        raise GraphQLError("Invalid screenId format. Please provide a valid UUID.")
+    async with AsyncSessionLocal() as db:
+        try:
+            screen_id_uuid = uuid.UUID(screenId)
+        except ValueError:
+            raise GraphQLError("Invalid screenId format. Please provide a valid UUID.")
 
-    viewings = await crud.get_recent_future_viewings_and_mark_viewed(
-        db, screen_id=screen_id_uuid, page=page, page_size=pageSize
-    )
-    return [v.to_dict() for v in viewings]
+        viewings = await crud.get_recent_future_viewings_and_mark_viewed(
+            db, screen_id=screen_id_uuid, page=page, page_size=pageSize
+        )
+        return [v.to_dict() for v in viewings]
 
 
 # Tipos de Mutation
@@ -150,18 +150,18 @@ async def resolve_add_future_viewing(_, info, input):
         dict: A payload containing the newly created FutureViewing object
               (as a dictionary via to_dict()).
     """
-    db: AsyncSession = info.context["db"]
-    name = input["name"]
-    age = input["age"]
-    content = input["content"]
+    async with AsyncSessionLocal() as db:
+        name = input["name"]
+        age = input["age"]
+        content = input["content"]
 
-    fv = await crud.create_future_viewing(db, name=name, age=age, content=content)
+        fv = await crud.create_future_viewing(db, name=name, age=age, content=content)
 
-    # Encolar la tarea de generación de imagen
-    # Pasa el ID como string porque es más fácil de serializar si fuera necesario para colas externas
-    await enqueue_image_generation(str(fv.id), fv.name, fv.age, fv.content)
+        # Encolar la tarea de generación de imagen
+        # Pasa el ID como string porque es más fácil de serializar si fuera necesario para colas externas
+        await enqueue_image_generation(str(fv.id), fv.name, fv.age, fv.content)
 
-    return {"futureViewing": fv.to_dict()}
+        return {"futureViewing": fv.to_dict()}
 
 
 @mutation.field("registerScreen")
@@ -181,11 +181,11 @@ async def resolve_register_screen(_, info, input):
         dict: A payload containing the newly registered Screen object
               (as a dictionary via to_dict()).
     """
-    db: AsyncSession = info.context["db"]
-    name = input.get("name")  # Optional name
+    async with AsyncSessionLocal() as db:
+        name = input.get("name")  # Optional name
 
-    registered_screen = await crud.register_screen(db, screen_name=name)
-    return {"screen": registered_screen.to_dict()}
+        registered_screen = await crud.register_screen(db, screen_name=name)
+        return {"screen": registered_screen.to_dict()}
 
 
 # EnumType para mapear el enum de Python al de GraphQL
