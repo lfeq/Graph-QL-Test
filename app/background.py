@@ -42,6 +42,6 @@ async def image_generation_worker():
                 f"Error en image_generation_worker procesando {future_viewing_id if 'future_viewing_id' in locals() else 'tarea desconocida'}: {e}")
             # No hacer task_done() si la tarea debe reintentarse o ser manejada de otra forma.
             # Si la tarea falló catastróficamente, task_done() puede ser apropiado para evitar que bloquee la cola.
-            if task_queue.empty() == False:  # Solo si aun quedan tareas
+            if task_queue.empty() == False:  # Solo si aún quedan tareas
                 task_queue.task_done()  # Marca como hecha para que no se bloquee la cola ante un error grave.
             await asyncio.sleep(5)  # Esperar un poco antes de reintentar obtener una nueva tarea
