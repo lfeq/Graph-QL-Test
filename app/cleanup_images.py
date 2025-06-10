@@ -1,7 +1,6 @@
 import os
 import datetime
 import logging
-import time
 
 # Configure logging
 # Note: BasicConfig should ideally be called only once.
