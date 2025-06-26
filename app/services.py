@@ -31,7 +31,7 @@ class OpenAIImageGenerator:
             print("Cliente OpenAI no inicializado debido a falta de API key.")
             return None
 
-        prompt = f"Imagen para {name} ({age} años): {content}"
+        prompt = f"Imagen para {name} de {age} años que se imagina el futuro de la siguiente forma: {content}"
         print(f"Generando imagen con prompt: {prompt}")
         try:
             response = await self.client.images.generate(
